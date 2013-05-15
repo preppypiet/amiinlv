@@ -1,8 +1,6 @@
 var config = require("../config");
-var MAP_ATTRIBUTION = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://creativecommons.org/licenses/by-sa/3.0">CC BY SA</a>.'
-var TILE_LAYER_URL = 'http://tile.stamen.com/toner/{z}/{x}/{y}.png';
-//var MAP_ATTRIBUTION = "©2012 Nokia <a href=\"http://here.net/services/terms\">Terms of Use</a>"
-//var TILE_LAYER_URL  = "https://maps.nlp.nokia.com/maptiler/v2/maptile/newest/normal.day/{z}/{x}/{y}/256/png8?lg=eng&token=61YWYROufLu_f8ylE0vn0Q&app_id=qIWDkliFCtLntLma2e6O"
+var MAP_ATTRIBUTION = config.mapAttribution,
+    TILE_LAYER_URL = config.mapTileLayerURL;
 
 var REGION_LAYER_STYLE ={
   color: "#F11",
@@ -82,7 +80,7 @@ Map.prototype.createPopup = function (lat, lng, answer, detail) {
   .setLatLng([lat, lng])
   .setContent('<a id="answer-back" href=""></a><h1>' + answer + '</h1><p>' + detail + '</p>')
   .openOn(this.map);
-//  $('#answer-back').on('click', reset);
+  $('#answer-back').on('click', goBack);
 }
 
 Map.prototype.removeMarkers = function () {

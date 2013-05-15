@@ -833,10 +833,8 @@ module.exports = getCurrentLocation;
 });
 
 require.define("/src/map.js",function(require,module,exports,__dirname,__filename,process,global){var config = require("../config");
-var MAP_ATTRIBUTION = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://creativecommons.org/licenses/by-sa/3.0">CC BY SA</a>.'
-var TILE_LAYER_URL = 'http://tile.stamen.com/toner/{z}/{x}/{y}.png';
-//var MAP_ATTRIBUTION = "©2012 Nokia <a href=\"http://here.net/services/terms\">Terms of Use</a>"
-//var TILE_LAYER_URL  = "https://maps.nlp.nokia.com/maptiler/v2/maptile/newest/normal.day/{z}/{x}/{y}/256/png8?lg=eng&token=61YWYROufLu_f8ylE0vn0Q&app_id=qIWDkliFCtLntLma2e6O"
+var MAP_ATTRIBUTION = config.mapAttribution,
+    TILE_LAYER_URL = config.mapTileLayerURL;
 
 var REGION_LAYER_STYLE ={
   color: "#F11",
@@ -916,7 +914,7 @@ Map.prototype.createPopup = function (lat, lng, answer, detail) {
   .setLatLng([lat, lng])
   .setContent('<a id="answer-back" href=""></a><h1>' + answer + '</h1><p>' + detail + '</p>')
   .openOn(this.map);
-//  $('#answer-back').on('click', reset);
+  $('#answer-back').on('click', History.back());
 }
 
 Map.prototype.removeMarkers = function () {
@@ -934,17 +932,22 @@ require.define("/package.json",function(require,module,exports,__dirname,__filen
 });
 
 require.define("/config.js",function(require,module,exports,__dirname,__filename,process,global){var config = {
-  name: "Las Vegas",
-  address: "495 S. Las Vegas Blvd",
+  name: 'Las Vegas',
+  address: '495 S. Las Vegas Blvd',
+  searchLocation: 'Las Vegas, NV',
+  mapAttribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://creativecommons.org/licenses/by-sa/3.0">CC BY SA</a>.',
+  mapTileLayerURL: 'http://tile.stamen.com/toner/{z}/{x}/{y}.png',
+//  mapAttribution: "©2012 Nokia <a href=\"http://here.net/services/terms\">Terms of Use</a>",
+//  mapTileLayerURL: "https://maps.nlp.nokia.com/maptiler/v2/maptile/newest/normal.day/{z}/{x}/{y}/256/png8?lg=eng&token=61YWYROufLu_f8ylE0vn0Q&app_id=qIWDkliFCtLntLma2e6O",
   latitude: 36.18,
   longitude: -115.18,
   initialZoom: 13,
   finalZoom: 14,
-  fileName: "/data/region.geojson",
-  tagline: "Because the city boundaries are a lot weirder than you think.",
-  about: "Las Vegas is one of the most visited cities in the world, and yet its most famous destination&mdash;a 6.8km boulevard of enormous themed casinos commonly known as \"The Strip\"&mdash;is not actually located inside Las Vegas but rather south of the city limits.  To add to the confusion, the city's true borders are often jagged and full of small holes.  It is a common misconception even amongst residents (who may still hold a valid Las Vegas address, according to the U.S. Postal Service!) that they are under the jurisdiction of Las Vegas when in fact they live in surrounding communities of unincorporated Clark County.  Many services provided by the City of Las Vegas require that a resident actually be within city limits; this site provides an easy way to check.",
-  responseYes: "You are within city limits!",
-  responseNo: "You are not in Las Vegas!"
+  fileName: '/data/region.geojson',
+  tagline: 'Because the city boundaries are a lot weirder than you think.',
+  about: 'Las Vegas is one of the most visited cities in the world, and yet its most famous destination&mdash;a 6.8km boulevard of enormous themed casinos commonly known as "The Strip"&mdash;is not actually located inside Las Vegas but rather south of the city limits.  To add to the confusion, the city\'s true borders are often jagged and full of small holes.  It is a common misconception even amongst residents (who may still hold a valid Las Vegas address, according to the U.S. Postal Service!) that they are under the jurisdiction of Las Vegas when in fact they live in surrounding communities of unincorporated Clark County.  Many services provided by the City of Las Vegas require that a resident actually be within city limits; this site provides an easy way to check.',
+  responseYes: 'You are within city limits!',
+  responseNo: 'You are not in Las Vegas!'
 }
 
 module.exports = config;
@@ -975,38 +978,95 @@ var json = {},
 function init (data) {
   json = data, map = new Map(data);
 
-  $("#input-target").on("click", onGetCurrentLocation);
-  $("#input-go").on("click", onGo);
-  $("#location-form").on("submit", onSubmit);
+  $('#input-target').on('click', onGetCurrentLocation);
+  $('#input-go').on('click', onGo);
+  $('#location-form').on('submit', onSubmit);
   $(document).keydown(function (e) {
     if (e.which == 27 && e.ctrlKey == false && e.metaKey == false) reset();
   });
   $('#about-link').on('click', aboutOpen);
-  $('#about-close').on('click', reset);
+  $('#about-close').on('click', function (e) {
+    e.preventDefault();
+    reset();
+  });
+}
 
-  // Looks for what to do based on URL
-  // incomplete. -louh
-  var q = window.location.search.substr(1);
-  switch(q) {
+/**
+ * Load from hash to determine state of the application
+ */
+
+function loadHash() {
+  var hash = window.location.hash;
+  var state = hash.substr(hash.indexOf('#/'));
+  switch(state) {
     case 'about':
-      aboutOpen();
+      $('#about-link').click();
       break;
-    case 'locate':
-      onGetCurrentLocation();
+    case 'here':
+      $('#input-target').click();
       break;
     case 'find':
-      // /find=x where x is the address to geocode
-      // this is totally broken because switch case matching isn't done on partial string
-      var findgeo = q.substr(q.indexOf('='));
-      if (findgeo) {
-        geocodeByAddress(findgeo);        
-        break;
-      }
+      $('#input-go').click();
+      break;
     default:
       reset();
   }
-
+/*
+  if (hash.match(/\//)) {
+      var splitHash = hash.split(/\//);
+      var section = splitHash[0];
+      var projectID = splitHash[1];
+      // Open portfolio item
+      if(section == '#portfolio'){
+          $('#d-portfolio').show();
+          $('#port-menu').hide();
+          $('#port-project').show();
+          if(projectID){
+              loadProject(projectID);
+          }
+      }
+  }
+  */
 }
+
+/**
+ *  history.js test
+ */
+
+(function(window,undefined){
+
+    // Prepare
+    var History = window.History; // Note: We are using a capital H instead of a lower h
+    if ( !History.enabled ) {
+         // History.js is disabled for this browser.
+         // This is because we can optionally choose to support HTML4 browsers or not.
+        return false;
+    }
+
+    // Bind to StateChange Event
+    History.Adapter.bind(window,'statechange',function(){ // Note: We are using statechange instead of popstate
+        var State = History.getState(); // Note: We are using History.getState() instead of event.state
+        History.log(State.data, State.title, State.url);
+    });
+
+    // Change our States
+
+    /*
+    History.pushState({state:1}, "State 1", "?state=1"); // logs {state:1}, "State 1", "?state=1"
+    History.pushState({state:2}, "State 2", "?state=2"); // logs {state:2}, "State 2", "?state=2"
+    History.replaceState({state:3}, "State 3", "?state=3"); // logs {state:3}, "State 3", "?state=3"
+    History.pushState(null, null, "?state=4"); // logs {}, '', "?state=4"
+    // logs {state:3}, "State 3", "?state=3"
+    History.back(); // logs {state:1}, "State 1", "?state=1"
+    History.back(); // logs {}, "Home Page", "?"
+    History.go(2); // logs {state:3}, "State 3", "?state=3"
+    */
+
+})(window);
+
+/**
+ * Creates the page from config and renders the map
+ */
 
 function render () {
   $('head title').html('Am I in ' + config.name);
@@ -1023,7 +1083,8 @@ function render () {
  */
 
 function reset () {
-  $('#input-location').val('')
+  // window.location.hash = '#/';
+  $('#input-location').val('');
   $('#alert').hide();
   aboutClose();
   $('#question').fadeIn(150);
@@ -1101,6 +1162,7 @@ function onOutsideLimits () {
  */
 
 function onGetCurrentLocation () {
+  window.location.hash = '#/here/';  
   geocodeByCurrentLocation();
   return false;
 }
@@ -1110,7 +1172,8 @@ function onGetCurrentLocation () {
  * whether it is within the limits
  */
 
-function onGo () {
+function onGo (e) {
+  e.preventDefault();
   submitLocation();
 }
 
@@ -1128,9 +1191,12 @@ function onSubmit (e) {
  * Submits form
  */
 function submitLocation () {
-  var $input = $("#input-location"), address = $input.val();
+  var $input = $("#input-location"),
+      address = $input.val(),
+      options = '';
   if (address != '') {
-    geocodeByAddress(address);    
+    window.location.hash = '#/find/' + encodeURIComponent(address) + options;
+    geocodeByAddress(address);
   }
   else {
     $('#input-location').focus();
@@ -1178,7 +1244,9 @@ function geocodeByAddress (address) {
  * Opens about window
  */
 
-function aboutOpen () {
+function aboutOpen (e) {
+  e.preventDefault();
+  window.location.hash = '#/about/';
   $('#location-form').fadeOut(200, function (){
     $('#about').fadeIn(200);
   });
@@ -1202,6 +1270,17 @@ function aboutClose () {
 jQuery(document).ready(function () {
   $.getJSON(config.fileName, function (data) {
     init(data);
+
+    // Load other application state immediately if link contains hash elements
+    // Currently using BBQ's hashchange plugin for this functionality.
+    // Bind hashchange event to window
+    /*
+    $(window).hashchange(function () {
+        loadHash();
+    });
+    // Trigger hashchange immediately
+    $(window).hashchange();
+*/
     render();
   });
 });

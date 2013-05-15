@@ -22,38 +22,95 @@ var json = {},
 function init (data) {
   json = data, map = new Map(data);
 
-  $("#input-target").on("click", onGetCurrentLocation);
-  $("#input-go").on("click", onGo);
-  $("#location-form").on("submit", onSubmit);
+  $('#input-target').on('click', onGetCurrentLocation);
+  $('#input-go').on('click', onGo);
+  $('#location-form').on('submit', onSubmit);
   $(document).keydown(function (e) {
     if (e.which == 27 && e.ctrlKey == false && e.metaKey == false) reset();
   });
   $('#about-link').on('click', aboutOpen);
-  $('#about-close').on('click', reset);
+  $('#about-close').on('click', function (e) {
+    e.preventDefault();
+    reset();
+  });
+}
 
-  // Looks for what to do based on URL
-  // incomplete. -louh
-  var q = window.location.search.substr(1);
-  switch(q) {
+/**
+ * Load from hash to determine state of the application
+ */
+
+function loadHash() {
+  var hash = window.location.hash;
+  var state = hash.substr(hash.indexOf('#/'));
+  switch(state) {
     case 'about':
-      aboutOpen();
+      $('#about-link').click();
       break;
-    case 'locate':
-      onGetCurrentLocation();
+    case 'here':
+      $('#input-target').click();
       break;
     case 'find':
-      // /find=x where x is the address to geocode
-      // this is totally broken because switch case matching isn't done on partial string
-      var findgeo = q.substr(q.indexOf('='));
-      if (findgeo) {
-        geocodeByAddress(findgeo);        
-        break;
-      }
+      $('#input-go').click();
+      break;
     default:
       reset();
   }
-
+/*
+  if (hash.match(/\//)) {
+      var splitHash = hash.split(/\//);
+      var section = splitHash[0];
+      var projectID = splitHash[1];
+      // Open portfolio item
+      if(section == '#portfolio'){
+          $('#d-portfolio').show();
+          $('#port-menu').hide();
+          $('#port-project').show();
+          if(projectID){
+              loadProject(projectID);
+          }
+      }
+  }
+  */
 }
+
+/**
+ *  history.js test
+ */
+
+(function(window,undefined){
+
+    // Prepare
+    var History = window.History; // Note: We are using a capital H instead of a lower h
+    if ( !History.enabled ) {
+         // History.js is disabled for this browser.
+         // This is because we can optionally choose to support HTML4 browsers or not.
+        return false;
+    }
+
+    // Bind to StateChange Event
+    History.Adapter.bind(window,'statechange',function(){ // Note: We are using statechange instead of popstate
+        var State = History.getState(); // Note: We are using History.getState() instead of event.state
+        History.log(State.data, State.title, State.url);
+    });
+
+    // Change our States
+
+    /*
+    History.pushState({state:1}, "State 1", "?state=1"); // logs {state:1}, "State 1", "?state=1"
+    History.pushState({state:2}, "State 2", "?state=2"); // logs {state:2}, "State 2", "?state=2"
+    History.replaceState({state:3}, "State 3", "?state=3"); // logs {state:3}, "State 3", "?state=3"
+    History.pushState(null, null, "?state=4"); // logs {}, '', "?state=4"
+    // logs {state:3}, "State 3", "?state=3"
+    History.back(); // logs {state:1}, "State 1", "?state=1"
+    History.back(); // logs {}, "Home Page", "?"
+    History.go(2); // logs {state:3}, "State 3", "?state=3"
+    */
+
+})(window);
+
+/**
+ * Creates the page from config and renders the map
+ */
 
 function render () {
   $('head title').html('Am I in ' + config.name);
@@ -70,7 +127,8 @@ function render () {
  */
 
 function reset () {
-  $('#input-location').val('')
+  // window.location.hash = '#/';
+  $('#input-location').val('');
   $('#alert').hide();
   aboutClose();
   $('#question').fadeIn(150);
@@ -148,6 +206,7 @@ function onOutsideLimits () {
  */
 
 function onGetCurrentLocation () {
+  window.location.hash = '#/here/';  
   geocodeByCurrentLocation();
   return false;
 }
@@ -157,7 +216,8 @@ function onGetCurrentLocation () {
  * whether it is within the limits
  */
 
-function onGo () {
+function onGo (e) {
+  e.preventDefault();
   submitLocation();
 }
 
@@ -175,9 +235,12 @@ function onSubmit (e) {
  * Submits form
  */
 function submitLocation () {
-  var $input = $("#input-location"), address = $input.val();
+  var $input = $("#input-location"),
+      address = $input.val(),
+      options = '';
   if (address != '') {
-    geocodeByAddress(address);    
+    window.location.hash = '#/find/' + encodeURIComponent(address) + options;
+    geocodeByAddress(address);
   }
   else {
     $('#input-location').focus();
@@ -225,7 +288,9 @@ function geocodeByAddress (address) {
  * Opens about window
  */
 
-function aboutOpen () {
+function aboutOpen (e) {
+  e.preventDefault();
+  window.location.hash = '#/about/';
   $('#location-form').fadeOut(200, function (){
     $('#about').fadeIn(200);
   });
@@ -242,6 +307,16 @@ function aboutClose () {
 }
 
 /**
+ * Go back
+ */
+
+function goBack (e) {
+  e.preventDefault();
+  History.back();
+  reset();
+}
+
+/**
  * Retrieves the region.json file and initializes
  * the application
  */ 
@@ -249,6 +324,17 @@ function aboutClose () {
 jQuery(document).ready(function () {
   $.getJSON(config.fileName, function (data) {
     init(data);
+
+    // Load other application state immediately if link contains hash elements
+    // Currently using BBQ's hashchange plugin for this functionality.
+    // Bind hashchange event to window
+    /*
+    $(window).hashchange(function () {
+        loadHash();
+    });
+    // Trigger hashchange immediately
+    $(window).hashchange();
+*/
     render();
   });
 });
